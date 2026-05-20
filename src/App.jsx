@@ -682,6 +682,16 @@ export default function App() {
       try {
         const query = `${track.artist} - ${track.title}`;
         const searchRes = await fetch(`/api/search-youtube?q=${encodeURIComponent(query)}`);
+        
+        if (!searchRes.ok) {
+          throw new Error(`YouTube proxy responded with status ${searchRes.status}`);
+        }
+        
+        const contentType = searchRes.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error("YouTube proxy returned a non-JSON response (likely an HTML error page).");
+        }
+        
         const searchData = await searchRes.json();
         
         if (searchData.videoId) {
