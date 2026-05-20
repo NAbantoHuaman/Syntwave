@@ -1143,6 +1143,8 @@ export default function App() {
             toggleLikeSong={toggleLikeSong}
             onShowArtistProfile={showArtistProfile}
             username={userProfile.username}
+            customPlaylists={customPlaylists}
+            addTrackToPlaylist={addTrackToPlaylist}
           />
         )}
 
@@ -1165,6 +1167,8 @@ export default function App() {
             updatePlaylistDescription={updatePlaylistDescription}
             onShowArtistProfile={showArtistProfile}
             username={userProfile.username}
+            customPlaylists={customPlaylists}
+            addTrackToPlaylist={addTrackToPlaylist}
           />
         )}
 
@@ -1180,6 +1184,8 @@ export default function App() {
             toggleLikeSong={toggleLikeSong}
             onShowArtistProfile={showArtistProfile}
             username={userProfile.username}
+            customPlaylists={customPlaylists}
+            addTrackToPlaylist={addTrackToPlaylist}
           />
         )}
 
@@ -1191,6 +1197,8 @@ export default function App() {
             likedSongs={likedSongs}
             toggleLikeSong={toggleLikeSong}
             onShowPlaylistDetail={showPlaylistDetail}
+            customPlaylists={customPlaylists}
+            addTrackToPlaylist={addTrackToPlaylist}
           />
         )}
       </main>
@@ -1226,6 +1234,8 @@ export default function App() {
         setIsDrawerOpen={setIsDrawerOpen}
         isFullScreenPlayerOpen={isFullScreenPlayerOpen}
         setIsFullScreenPlayerOpen={setIsFullScreenPlayerOpen}
+        customPlaylists={customPlaylists}
+        addTrackToPlaylist={addTrackToPlaylist}
       />
 
       <FullscreenPlayer
@@ -1247,6 +1257,8 @@ export default function App() {
         onSeek={handleSeek}
         isLiked={currentTrack ? likedSongs.some(s => s.id === currentTrack.id) : false}
         toggleLikeCurrentTrack={toggleLikeCurrentTrack}
+        customPlaylists={customPlaylists}
+        addTrackToPlaylist={addTrackToPlaylist}
       />
 
       {/* Central Audio Tag */}

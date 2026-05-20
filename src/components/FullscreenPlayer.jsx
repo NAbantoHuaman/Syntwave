@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { formatTime } from '../data/songs';
 
 export default function FullscreenPlayer({
@@ -19,8 +19,11 @@ export default function FullscreenPlayer({
   duration,
   onSeek,
   isLiked,
-  toggleLikeCurrentTrack
+  toggleLikeCurrentTrack,
+  customPlaylists,
+  addTrackToPlaylist
 }) {
+  const [showPlaylistDropdown, setShowPlaylistDropdown] = useState(false);
   const progressContainerRef = useRef(null);
   const volumeContainerRef = useRef(null);
   const lyricsContainerRef = useRef(null);
@@ -154,6 +157,85 @@ export default function FullscreenPlayer({
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
               </svg>
             </button>
+
+            {/* Add to Playlist button */}
+            <div style={{ position: 'relative' }}>
+              <button 
+                className="fullscreen-like-btn"
+                onClick={() => setShowPlaylistDropdown(!showPlaylistDropdown)}
+                title="Añadir a playlist"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 5v14M5 12h14"/>
+                </svg>
+              </button>
+
+              {showPlaylistDropdown && (
+                <div
+                  className="playlist-dropdown-menu"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    bottom: '44px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#1a1a2e',
+                    border: '1px solid rgba(255, 0, 127, 0.15)',
+                    borderRadius: '8px',
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.6), 0 0 20px rgba(255,0,127,0.08)',
+                    padding: '6px 0',
+                    zIndex: '9999',
+                    minWidth: '200px',
+                    backdropFilter: 'blur(12px)',
+                    animation: 'fadeInUp 0.2s ease'
+                  }}
+                >
+                  <div style={{
+                    padding: '8px 14px',
+                    fontSize: '11px',
+                    color: '#ff007f',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    Añadir a playlist
+                  </div>
+                  {(!customPlaylists || customPlaylists.length === 0) ? (
+                    <div style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                      Crea una playlist primero.
+                    </div>
+                  ) : (
+                    customPlaylists.map((pl) => (
+                      <button
+                        key={pl.id}
+                        onClick={() => {
+                          addTrackToPlaylist(pl.id, currentTrack);
+                          setShowPlaylistDropdown(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '9px 14px',
+                          backgroundColor: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-main)',
+                          textAlign: 'left',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          display: 'block',
+                          transition: 'background-color 0.15s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,0,127,0.08)'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                      >
+                        {pl.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Seeker / Progress bar inside Visual Column */}
