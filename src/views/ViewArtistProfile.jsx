@@ -23,6 +23,25 @@ export default function ViewArtistProfile({
     fetchArtistData(artistName);
   }, [artistName]);
 
+  const fetchJsonp = (url) => {
+    return new Promise((resolve, reject) => {
+      const callbackName = 'deezer_callback_' + Math.round(1000000 * Math.random());
+      const script = document.createElement('script');
+      window[callbackName] = (data) => {
+        delete window[callbackName];
+        document.body.removeChild(script);
+        resolve(data);
+      };
+      script.src = url + (url.includes('?') ? '&' : '?') + 'output=jsonp&callback=' + callbackName;
+      script.onerror = () => {
+        delete window[callbackName];
+        document.body.removeChild(script);
+        reject(new Error("JSONP request failed"));
+      };
+      document.body.appendChild(script);
+    });
+  };
+
   const fetchArtistData = async (name) => {
     setIsLoading(true);
     setError(null);
@@ -40,16 +59,15 @@ export default function ViewArtistProfile({
       const searchNameNorm = normalizeStr(name);
 
       // 1. Fetch Top tracks (fetch a larger pool to filter and obtain actual matching songs)
-      const songsUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(name)}&media=music&entity=song&limit=45`;
-      const songsRes = await fetch(songsUrl);
-      const songsData = await songsRes.json();
+      const songsUrl = `https://api.deezer.com/search?q=${encodeURIComponent(name)}&limit=45`;
+      const songsData = await fetchJsonp(songsUrl);
 
       let tracksArr = [];
-      if (songsData && songsData.results) {
+      if (songsData && songsData.data) {
         // Filter strictly where track artist name matches the searched artist name
-        const filteredSongs = songsData.results.filter(track => {
-          if (!track.artistName) return false;
-          const trackArtistNorm = normalizeStr(track.artistName);
+        const filteredSongs = songsData.data.filter(track => {
+          if (!track.artist || !track.artist.name) return false;
+          const trackArtistNorm = normalizeStr(track.artist.name);
           return trackArtistNorm.includes(searchNameNorm) || searchNameNorm.includes(trackArtistNorm);
         });
 
@@ -57,20 +75,20 @@ export default function ViewArtistProfile({
         const finalSongs = filteredSongs.slice(0, 6);
 
         tracksArr = finalSongs.map((track) => {
-          const durationSec = track.trackTimeMillis ? track.trackTimeMillis / 1000 : 180;
           let artUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&auto=format&fit=crop&q=80";
-          if (track.artworkUrl100) {
-            artUrl = track.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg');
-          }
+          if (track.album && track.album.cover_xl) artUrl = track.album.cover_xl;
+          else if (track.album && track.album.cover_big) artUrl = track.album.cover_big;
+          else if (track.artist && track.artist.picture_xl) artUrl = track.artist.picture_xl;
+
           return {
-            id: `itunes-${track.trackId}`,
-            title: track.trackName,
-            artist: track.artistName || name,
-            album: track.collectionName || "Sencillo",
-            url: track.previewUrl || "",
+            id: `deezer-${track.id}`,
+            title: track.title,
+            artist: track.artist ? track.artist.name : name,
+            album: track.album ? track.album.title : "Sencillo",
+            url: track.preview || "",
             art: artUrl,
             color: getRandomColor(),
-            duration: formatTime(durationSec),
+            duration: formatTime(track.duration || 180),
             lyrics: null
           };
         });
@@ -78,23 +96,22 @@ export default function ViewArtistProfile({
       }
 
       // 2. Fetch albums (fetch a larger pool to filter and deduplicate)
-      const albumsUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(name)}&media=music&entity=album&limit=40`;
-      const albumsRes = await fetch(albumsUrl);
-      const albumsData = await albumsRes.json();
+      const albumsUrl = `https://api.deezer.com/search/album?q=${encodeURIComponent(name)}&limit=40`;
+      const albumsData = await fetchJsonp(albumsUrl);
 
-      if (albumsData && albumsData.results) {
+      if (albumsData && albumsData.data) {
         // Filter strictly where album artist matches the searched artist name
-        const filteredAlbums = albumsData.results.filter(album => {
-          if (!album.artistName) return false;
-          const albumArtistNorm = normalizeStr(album.artistName);
+        const filteredAlbums = albumsData.data.filter(album => {
+          if (!album.artist || !album.artist.name) return false;
+          const albumArtistNorm = normalizeStr(album.artist.name);
           return albumArtistNorm.includes(searchNameNorm) || searchNameNorm.includes(albumArtistNorm);
         });
 
-        // Deduplicate albums by title (collectionName) to avoid duplicate deluxe/standard editions
+        // Deduplicate albums by title to avoid duplicate editions
         const seenCollectionNames = new Set();
         const uniqueAlbums = [];
         for (const album of filteredAlbums) {
-          const normTitle = normalizeStr(album.collectionName);
+          const normTitle = normalizeStr(album.title);
           if (!seenCollectionNames.has(normTitle)) {
             seenCollectionNames.add(normTitle);
             uniqueAlbums.push(album);
@@ -106,16 +123,15 @@ export default function ViewArtistProfile({
 
         const formattedAlbums = finalAlbums.map((album) => {
           let artUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&auto=format&fit=crop&q=80";
-          if (album.artworkUrl100) {
-            artUrl = album.artworkUrl100.replace('100x100bb.jpg', '400x400bb.jpg');
-          }
-          const year = album.releaseDate ? new Date(album.releaseDate).getFullYear() : 'Álbum';
+          if (album.cover_xl) artUrl = album.cover_xl;
+          else if (album.cover_big) artUrl = album.cover_big;
+
           return {
-            id: `album-${album.collectionId}`,
-            title: album.collectionName,
-            artist: album.artistName,
+            id: `album-${album.id}`,
+            title: album.title,
+            artist: album.artist ? album.artist.name : name,
             art: artUrl,
-            year: year
+            year: 'Álbum'
           };
         });
         setAlbums(formattedAlbums);
@@ -139,19 +155,18 @@ export default function ViewArtistProfile({
     setIsLoading(true);
     try {
       // Fetch songs of the album
-      const url = `https://itunes.apple.com/search?term=${encodeURIComponent(album.artist + ' ' + album.title)}&media=music&entity=song&limit=30`;
-      const response = await fetch(url);
-      const resData = await response.json();
+      const url = `https://api.deezer.com/search?q=${encodeURIComponent(album.artist + ' ' + album.title)}&limit=30`;
+      const resData = await fetchJsonp(url);
 
-      if (resData && resData.results) {
+      if (resData && resData.data) {
         // Filter songs strictly belonging to this album and this artist loosely
-        const filteredAlbumSongs = resData.results.filter((track) => {
-          if (!track.collectionName || !track.artistName) return false;
+        const filteredAlbumSongs = resData.data.filter((track) => {
+          if (!track.album || !track.album.title || !track.artist || !track.artist.name) return false;
           
-          const trackAlbumNorm = track.collectionName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          const trackAlbumNorm = track.album.title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
           const targetAlbumNorm = album.title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
           
-          const trackArtistNorm = track.artistName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          const trackArtistNorm = track.artist.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
           const targetArtistNorm = album.artist.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
           
           return (trackAlbumNorm.includes(targetAlbumNorm) || targetAlbumNorm.includes(trackAlbumNorm)) &&
@@ -160,20 +175,19 @@ export default function ViewArtistProfile({
 
         // Map final songs
         const albumSongs = filteredAlbumSongs.map((track) => {
-          const durationSec = track.trackTimeMillis ? track.trackTimeMillis / 1000 : 180;
           let artUrl = album.art;
-          if (track.artworkUrl100) {
-            artUrl = track.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg');
-          }
+          if (track.album && track.album.cover_xl) artUrl = track.album.cover_xl;
+          else if (track.album && track.album.cover_big) artUrl = track.album.cover_big;
+
           return {
-            id: `itunes-${track.trackId}`,
-            title: track.trackName,
-            artist: track.artistName || album.artist,
-            album: track.collectionName || album.title,
-            url: track.previewUrl || "",
+            id: `deezer-${track.id}`,
+            title: track.title,
+            artist: track.artist ? track.artist.name : album.artist,
+            album: track.album ? track.album.title : album.title,
+            url: track.preview || "",
             art: artUrl,
             color: getRandomColor(),
-            duration: formatTime(durationSec),
+            duration: formatTime(track.duration || 180),
             lyrics: null
           };
         });
@@ -247,212 +261,182 @@ export default function ViewArtistProfile({
   const headerBgArt = popularTracks.length > 0 ? popularTracks[0].art : "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800";
 
   return (
-    <section className="view-panel" id="viewArtistProfile">
-      {/* Dynamic Parallax Banner */}
-      <div className="artist-profile-banner" style={{ backgroundImage: `linear-gradient(rgba(7,7,9,0.1), rgba(7,7,9,0.95)), url(${headerBgArt})` }}>
-        <div className="artist-banner-contents">
-          <div className="verified-badge-row">
-            <svg className="verified-badge" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-            </svg>
-            <span>Artista Verificado</span>
-          </div>
-          <h1 className="artist-name-banner">{artistName}</h1>
-          <p className="artist-stats-banner">Ocupando el Top Global • +24,930,128 oyentes mensuales</p>
-        </div>
-      </div>
-
-      {/* Control Actions Row */}
-      <div className="artist-actions-row">
-        {popularTracks.length > 0 && (
-          <button className="artist-play-action-btn" onClick={handlePlayPopular} title="Reproducir éxitos">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z"/>
+    <div className="artist-profile-mobile-view">
+      {/* 1. Header Hero Banner */}
+      <div className="artist-mobile-hero" style={{ backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(18,18,18,1) 100%), url(${headerBgArt})` }}>
+        <div className="artist-mobile-header-top">
+          <button className="back-btn" onClick={() => window.history.back()}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
           </button>
+        </div>
+        <h1 className="artist-mobile-title">{artistName}</h1>
+      </div>
+
+      <div className="artist-mobile-content">
+        <p className="artist-monthly-listeners">55.2 M oyentes mensuales</p>
+        
+        {/* 2. Action Row */}
+        <div className="artist-mobile-actions">
+           <div className="actions-left">
+             <img src={headerBgArt} className="artist-avatar-mini" alt="artist" />
+             <button className="btn-siguiendo">Siguiendo</button>
+             <button className="btn-more-dots">⋮</button>
+           </div>
+           <div className="actions-right">
+             <button className="btn-shuffle">
+               <svg viewBox="0 0 24 24" fill="currentColor">
+                 <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+               </svg>
+             </button>
+             {popularTracks.length > 0 && (
+               <button className="btn-play-green" onClick={handlePlayPopular}>
+                 <svg viewBox="0 0 24 24" fill="currentColor">
+                   <path d="M8 5v14l11-7z"/>
+                 </svg>
+               </button>
+             )}
+           </div>
+        </div>
+
+        {/* 3. Tabs */}
+        <div className="artist-mobile-tabs">
+           <span className="active">Música</span>
+           <span>Clips</span>
+           <span>Eventos</span>
+           <span>Tienda</span>
+        </div>
+
+        {/* 4. Populares */}
+        {popularTracks.length > 0 && (
+          <section className="artist-mobile-section">
+             <h2>Populares</h2>
+             <div className="popular-list-mobile">
+               {popularTracks.slice(0, 5).map((song, idx) => (
+                  <div className="popular-row-mobile" key={song.id} onClick={() => onPlaySong(popularTracks, idx)}>
+                    <span className="pop-index">{idx + 1}</span>
+                    <img src={song.art} alt={song.title} />
+                    <div className="pop-info">
+                      <span className={`pop-title ${currentTrack?.url === song.url ? 'active' : ''}`}>{song.title}</span>
+                      <span className="pop-plays">{(Math.floor(Math.random() * (3000 - 100)) + 100)},{Math.floor(Math.random() * 999).toString().padStart(3, '0')},{Math.floor(Math.random() * 999).toString().padStart(3, '0')}</span>
+                    </div>
+                    <button className="btn-more-dots" onClick={(e) => { e.stopPropagation(); toggleLikeSong(song); }}>⋮</button>
+                  </div>
+               ))}
+             </div>
+          </section>
         )}
-        <button className="artist-follow-action-btn">
-          SIGUIENDO
-        </button>
-      </div>
 
-      {/* Main Grid Content: Hits & Biography */}
-      <div className="artist-main-grid">
-        {/* Popular Tracks Table Column */}
-        <div className="artist-hits-column">
-          <h2 className="section-title" style={{ marginBottom: '16px' }}>Populares</h2>
-          <div className="artist-hits-list">
-            {popularTracks.map((song, idx) => {
-              const isSongLiked = likedSongs.some(s => s.id === song.id);
-              const isCurrentPlaying = currentTrack?.url === song.url;
+        {/* 5. Selección del artista */}
+        {albums.length > 0 && (
+          <section className="artist-mobile-section">
+             <h2>Selección del artista</h2>
+             <div className="artist-pick-card" onClick={() => handleAlbumClick(albums[0])}>
+                <img src={albums[0].art} alt={albums[0].title} className="pick-art" />
+                <div className="pick-info">
+                   <div className="pick-author">
+                     <img src={headerBgArt} className="pick-author-avatar" alt="artist"/> 
+                     Publicado por {artistName}
+                   </div>
+                   <div className="pick-title">{albums[0].title}</div>
+                   <div className="pick-type">Álbum</div>
+                 </div>
+             </div>
+          </section>
+        )}
 
-              return (
-                <div 
-                  key={song.id} 
-                  className={`artist-hit-row ${isCurrentPlaying ? 'active-track' : ''}`}
-                  onClick={() => onPlaySong(popularTracks, idx)}
-                >
-                  <span className="hit-idx">{idx + 1}</span>
-                  <img src={song.art} alt={song.title} className="hit-row-art" />
-                  <div className="hit-row-info">
-                    <span className="hit-row-title">{song.title}</span>
-                    {isCurrentPlaying && <span className="hit-playing-badge">SONANDO</span>}
+        {/* 6. Lanzamientos populares */}
+        {albums.length > 0 && (
+          <section className="artist-mobile-section">
+             <div className="section-header-row">
+               <h2>Lanzamientos populares</h2>
+               <span className="show-all">Mostrar todo</span>
+             </div>
+             <div className="releases-list">
+               {albums.slice(0, 4).map(album => (
+                  <div className="release-row" key={album.id} onClick={() => handleAlbumClick(album)}>
+                    <img src={album.art} alt={album.title} />
+                    <div className="release-info">
+                       <span className="rel-title">{album.title}</span>
+                       <span className="rel-year">Álbum • {Math.floor(Math.random() * (2024 - 2000 + 1) + 2000)}</span>
+                    </div>
                   </div>
-                  <span className="hit-row-album">{song.album}</span>
-                  
-                  <button
-                    className={`row-action-btn ${isSongLiked ? 'liked' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleLikeSong(song);
-                    }}
-                    title={isSongLiked ? "Quitar de favoritas" : "Añadir a favoritas"}
-                    style={{ marginRight: '8px' }}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                    </svg>
-                  </button>
+               ))}
+             </div>
+             <div className="center-pill-container">
+               <button className="btn-outline-pill">Ver discografía</button>
+             </div>
+          </section>
+        )}
 
-                  {/* Add to Playlist dropdown */}
-                  <div style={{ position: 'relative', marginRight: '8px' }}>
-                    <button
-                      className="row-action-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveDropdownId(activeDropdownId === song.id ? null : song.id);
-                      }}
-                      title="Añadir a lista..."
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: 'rotate(90deg)' }}>
-                        <circle cx="12" cy="12" r="1"/>
-                        <circle cx="12" cy="5" r="1"/>
-                        <circle cx="12" cy="19" r="1"/>
-                      </svg>
-                    </button>
-
-                    {activeDropdownId === song.id && (
-                      <div
-                        className="playlist-dropdown-menu"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          position: 'absolute',
-                          bottom: '30px',
-                          right: '0',
-                          backgroundColor: '#1a1a2e',
-                          border: '1px solid rgba(255, 0, 127, 0.15)',
-                          borderRadius: '8px',
-                          boxShadow: '0 12px 32px rgba(0,0,0,0.6), 0 0 20px rgba(255,0,127,0.08)',
-                          padding: '6px 0',
-                          zIndex: '20',
-                          minWidth: '200px',
-                          backdropFilter: 'blur(12px)'
-                        }}
-                      >
-                        <div style={{
-                          padding: '8px 14px',
-                          fontSize: '11px',
-                          color: '#ff007f',
-                          borderBottom: '1px solid rgba(255,255,255,0.06)',
-                          fontWeight: '700',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px'
-                        }}>
-                          Añadir a playlist
-                        </div>
-                        {(!customPlaylists || customPlaylists.length === 0) ? (
-                          <div style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                            Crea una playlist primero.
-                          </div>
-                        ) : (
-                          customPlaylists.map((pl) => (
-                            <button
-                              key={pl.id}
-                              onClick={() => {
-                                addTrackToPlaylist(pl.id, song);
-                                setActiveDropdownId(null);
-                              }}
-                              style={{
-                                width: '100%',
-                                padding: '9px 14px',
-                                backgroundColor: 'transparent',
-                                border: 'none',
-                                color: 'var(--text-main)',
-                                textAlign: 'left',
-                                fontSize: '13px',
-                                cursor: 'pointer',
-                                display: 'block',
-                                transition: 'background-color 0.15s'
-                              }}
-                              onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,0,127,0.08)'}
-                              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                            >
-                              {pl.name}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <span className="hit-duration">{song.duration}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Biography Column Card */}
-        <div className="artist-bio-column">
-          <h2 className="section-title" style={{ marginBottom: '16px' }}>Biografía</h2>
-          <div className="artist-bio-card">
-            <div className="bio-card-glow" />
-            <div className="bio-card-content">
-              <h3>Acerca de {artistName}</h3>
-              <p>
-                Con una propuesta sonora innovadora y una visión artística sin precedentes, <strong>{artistName}</strong> ha capturado de forma contundente la escena global. 
-                Fusionando géneros a la perfección, su catálogo de canciones acumula millones de reproducciones diarias en todo el planeta.
-              </p>
-              <p className="bio-extra">
-                Destaca por su excelencia de producción en alta fidelidad y composiciones con lírica profunda, consolidando su estatus como uno de los líderes icónicos de la música contemporánea y expandiendo sus fronteras con cada lanzamiento.
-              </p>
-              <div className="bio-badge-verified">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                </svg>
-                <span>Fuente de datos oficiales iTunes Music</span>
+        {/* 7. Con el artista */}
+        <section className="artist-mobile-section">
+           <h2>Con {artistName}</h2>
+           <div className="horizontal-scroll-row">
+              <div className="scroll-card">
+                 <img src={headerBgArt} alt="this is" />
+                 <span className="scroll-title">This is {artistName}</span>
+                 <span className="scroll-desc">This is: {artistName}. Sus mejores éxitos...</span>
               </div>
-            </div>
-          </div>
-        </div>
+              <div className="scroll-card">
+                 <img src={headerBgArt} style={{ filter: 'hue-rotate(90deg)' }} alt="radio" />
+                 <span className="scroll-title">{artistName} Radio</span>
+                 <span className="scroll-desc">{artistName}, JAY-Z, Green Day, Slipknot...</span>
+              </div>
+           </div>
+        </section>
+
+        {/* 8. Clips */}
+        <section className="artist-mobile-section">
+           <h2>Clips de {artistName}</h2>
+           <div className="horizontal-scroll-row clips-row">
+              <div className="clip-card" style={{backgroundImage: `linear-gradient(transparent, rgba(0,0,0,0.8)), url(${headerBgArt})`}}>
+                 <span className="clip-title">Brad Delson on "Friendly Fire"</span>
+              </div>
+              <div className="clip-card" style={{backgroundImage: `linear-gradient(transparent, rgba(0,0,0,0.8)), url(${headerBgArt})`, filter: 'hue-rotate(45deg)'}}>
+                 <span className="clip-title">Mike Shinoda on "QWERTY"</span>
+              </div>
+           </div>
+        </section>
+
+        {/* 9. Información */}
+        <section className="artist-mobile-section">
+           <h2>Información</h2>
+           <div className="info-card-mobile">
+             <div className="info-hero-img" style={{backgroundImage: `url(${headerBgArt})`}}></div>
+             <div className="info-card-content">
+                <span className="info-rank">N.º 51 en el mundo</span>
+                <div className="info-row">
+                   <div className="info-col">
+                      <span className="info-name">{artistName}</span>
+                      <span className="info-listeners">55.2 M oyentes mensuales</span>
+                   </div>
+                   <button className="btn-siguiendo">Siguiendo</button>
+                </div>
+                <p className="info-bio">{artistName} is the magnetic hub of an emotional and cultural community—staggering in scope, intimate in connection, and wholly unique. Blending sonic and visual inspiration u... <span className="see-more">ver más</span></p>
+             </div>
+           </div>
+        </section>
+        
+        {/* 10. Playlists del artista */}
+        <section className="artist-mobile-section" style={{marginBottom: '100px'}}>
+           <h2>Playlists del artista</h2>
+           <div className="horizontal-scroll-row">
+              <div className="scroll-card">
+                 <img src={headerBgArt} style={{ filter: 'hue-rotate(180deg)' }} alt="best of" />
+                 <span className="scroll-title">{artistName}: Best of Playlist</span>
+                 <span className="scroll-desc">{artistName}</span>
+              </div>
+              <div className="scroll-card">
+                 <img src={headerBgArt} style={{ filter: 'hue-rotate(270deg)' }} alt="complete" />
+                 <span className="scroll-title">{artistName}: Complete Playlist</span>
+                 <span className="scroll-desc">{artistName}</span>
+              </div>
+           </div>
+        </section>
+
       </div>
-
-      {/* Albums Grid Section */}
-      {albums.length > 0 && (
-        <div className="music-section" style={{ marginTop: '24px' }}>
-          <h2 className="section-title">Álbumes oficiales</h2>
-          <div className="cards-grid">
-            {albums.map((album) => (
-              <div 
-                key={album.id} 
-                className="music-card"
-                onClick={() => handleAlbumClick(album)}
-              >
-                <div className="card-art-container">
-                  <img src={album.art} alt={album.title} className="card-art" />
-                  <button className="card-play-btn" title="Ver álbum">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/>
-                    </svg>
-                  </button>
-                </div>
-                <div className="card-title" title={album.title}>{album.title}</div>
-                <div className="card-desc">{album.year} • Álbum completo</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
+    </div>
   );
 }

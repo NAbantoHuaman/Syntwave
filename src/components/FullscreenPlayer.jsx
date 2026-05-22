@@ -21,9 +21,13 @@ export default function FullscreenPlayer({
   isLiked,
   toggleLikeCurrentTrack,
   customPlaylists,
-  addTrackToPlaylist
+  addTrackToPlaylist,
+  createPlaylist
 }) {
   const [showPlaylistDropdown, setShowPlaylistDropdown] = useState(false);
+  const [mobileTab, setMobileTab] = useState('player'); // 'player' | 'lyrics'
+  const [isSongOptionsOpen, setIsSongOptionsOpen] = useState(false);
+  const [isAddPlaylistOpen, setIsAddPlaylistOpen] = useState(false);
   const progressContainerRef = useRef(null);
   const volumeContainerRef = useRef(null);
   const lyricsContainerRef = useRef(null);
@@ -120,18 +124,24 @@ export default function FullscreenPlayer({
 
       <div className="fullscreen-header">
         <button className="minimize-btn" onClick={onClose} title="Minimizar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>
             <path d="m6 9 6 6 6-6"/>
           </svg>
         </button>
         <div className="header-meta">
-          <span className="playing-from-tag">REPRODUCIENDO CANCIÓN</span>
-          <span className="album-name-tag">{currentTrack.album}</span>
+          <span className="playing-from-tag">REPRODUCIENDO DESDE ARTISTA</span>
+          <span className="album-name-tag">{currentTrack.artist}</span>
         </div>
-        <div style={{ width: '48px' }}></div> {/* Spacer */}
+        <button className="options-btn-top" onClick={() => setIsSongOptionsOpen(true)} title="Opciones" style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>
+            <circle cx="12" cy="12" r="1"/>
+            <circle cx="12" cy="5" r="1"/>
+            <circle cx="12" cy="19" r="1"/>
+          </svg>
+        </button>
       </div>
 
-      <div className={`fullscreen-body-layout ${!hasLyrics ? 'no-lyrics' : ''}`}>
+      <div className={`fullscreen-body-layout ${!hasLyrics ? 'no-lyrics' : ''} mobile-tab-${mobileTab}`}>
         {/* Left Column: Visual details (Cover Art and titles) */}
         <div className="fullscreen-visual-column">
           <div className="fullscreen-art-container">
@@ -142,99 +152,48 @@ export default function FullscreenPlayer({
             />
           </div>
           
+          {/* Línea de letra activa destacada en tiempo real bajo la carátula */}
+          {hasLyrics && activeLineIndex !== -1 && (
+            <div className="active-lyric-caption-bubble" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-start' }}>
+              <span className="active-lyric-caption-text" style={{ 
+                background: 'rgba(255, 255, 255, 0.1)', 
+                color: '#fff', 
+                padding: '4px 8px', 
+                borderRadius: '6px', 
+                fontSize: '12px', 
+                fontWeight: '600' 
+              }}>
+                {currentTrack.lyrics[activeLineIndex].text}
+              </span>
+            </div>
+          )}
+          
           <div className="fullscreen-track-info-row">
             <div className="fullscreen-titles-block">
               <h1 className="fullscreen-song-title">{currentTrack.title}</h1>
               <p className="fullscreen-song-artist">{currentTrack.artist}</p>
             </div>
             
-            <button 
-              className={`fullscreen-like-btn ${isLiked ? 'liked' : ''}`}
-              onClick={toggleLikeCurrentTrack}
-              title={isLiked ? "Quitar de favoritas" : "Añadir a favoritas"}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-              </svg>
-            </button>
-
-            {/* Add to Playlist button */}
-            <div style={{ position: 'relative' }}>
+            <div className="fullscreen-actions-right">
               <button 
-                className="fullscreen-like-btn"
-                onClick={() => setShowPlaylistDropdown(!showPlaylistDropdown)}
-                title="Añadir a playlist"
-                style={{ color: 'var(--text-muted)' }}
+                className={`fullscreen-add-playlist-btn ${isLiked ? 'liked' : ''}`}
+                onClick={toggleLikeCurrentTrack}
+                title={isLiked ? "Añadido a tus Me Gusta" : "Añadir a tus Me Gusta"}
+                style={{ background: 'transparent', border: 'none', color: isLiked ? '#1db954' : '#b3b3b3', cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 5v14M5 12h14"/>
-                </svg>
+                {isLiked ? (
+                  <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '28px', height: '28px' }}>
+                    <circle cx="12" cy="12" r="10" fill="#1db954"/>
+                    <path d="m9 12 2 2 4-4" fill="none" stroke="#121212" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '28px', height: '28px' }}>
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                  </svg>
+                )}
               </button>
-
-              {showPlaylistDropdown && (
-                <div
-                  className="playlist-dropdown-menu"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    position: 'absolute',
-                    bottom: '44px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    backgroundColor: '#1a1a2e',
-                    border: '1px solid rgba(255, 0, 127, 0.15)',
-                    borderRadius: '8px',
-                    boxShadow: '0 12px 32px rgba(0,0,0,0.6), 0 0 20px rgba(255,0,127,0.08)',
-                    padding: '6px 0',
-                    zIndex: '9999',
-                    minWidth: '200px',
-                    backdropFilter: 'blur(12px)',
-                    animation: 'fadeInUp 0.2s ease'
-                  }}
-                >
-                  <div style={{
-                    padding: '8px 14px',
-                    fontSize: '11px',
-                    color: '#ff007f',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    Añadir a playlist
-                  </div>
-                  {(!customPlaylists || customPlaylists.length === 0) ? (
-                    <div style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                      Crea una playlist primero.
-                    </div>
-                  ) : (
-                    customPlaylists.map((pl) => (
-                      <button
-                        key={pl.id}
-                        onClick={() => {
-                          addTrackToPlaylist(pl.id, currentTrack);
-                          setShowPlaylistDropdown(false);
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '9px 14px',
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-main)',
-                          textAlign: 'left',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          display: 'block',
-                          transition: 'background-color 0.15s'
-                        }}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,0,127,0.08)'}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                      >
-                        {pl.name}
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
             </div>
           </div>
 
@@ -258,7 +217,7 @@ export default function FullscreenPlayer({
           {/* Full controls below progress */}
           <div className="fullscreen-controls-row">
             <button 
-              className={`fs-control-btn ${isShuffle ? 'active' : ''}`}
+              className={`fs-control-btn shuffle-btn-glow ${isShuffle ? 'active' : ''}`}
               onClick={() => setIsShuffle(!isShuffle)}
               title="Aleatorio"
             >
@@ -292,7 +251,7 @@ export default function FullscreenPlayer({
             </button>
 
             <button 
-              className={`fs-control-btn ${isRepeat ? 'active' : ''}`}
+              className={`fs-control-btn repeat-btn-glow ${isRepeat ? 'active' : ''}`}
               onClick={() => setIsRepeat(!isRepeat)}
               title="Repetir"
             >
@@ -302,35 +261,30 @@ export default function FullscreenPlayer({
             </button>
           </div>
 
-          {/* Volume Control */}
-          <div className="fullscreen-volume-wrapper">
-            <button 
-              className="fs-control-btn"
-              onClick={() => setVolume(volume === 0 ? 0.7 : 0)}
-              title={volume === 0 ? "Activar sonido" : "Silenciar"}
-            >
-              {volume === 0 ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                  <line x1="23" y1="9" x2="17" y2="15"/>
-                  <line x1="17" y1="9" x2="23" y2="15"/>
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                </svg>
-              )}
+          {/* Fila Inferior de Utilidades Móviles (Dispositivo, Compartir, Cola) */}
+          <div className="fullscreen-footer-utility-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+            <button className="fs-utility-btn" onClick={() => alert("Dispositivos: Simulado en Syntwave Mobile.")} title="Dispositivos" style={{ background: 'transparent', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: '8px' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
+                <rect x="2" y="2" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
             </button>
-            <div 
-              className="fs-volume-slider-container"
-              ref={volumeContainerRef}
-              onClick={handleVolumeClick}
-              onMouseDown={handleVolumeMouseDown}
-            >
-              <div className="fs-volume-filled" style={{ width: `${volumePercent}%` }} />
-              <div className="fs-volume-handle" style={{ left: `${volumePercent}%` }} />
-            </div>
+
+            <button className="fs-utility-btn" onClick={() => alert("Compartir: ¡Copia el enlace de esta joya de Syntwave!")} title="Compartir" style={{ background: 'transparent', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: '8px' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </button>
+
+            <button className="fs-utility-btn" onClick={() => alert("Cola de reproducción: ¡Viene el siguiente temazo pop en un momento!")} title="Cola de reproducción" style={{ background: 'transparent', border: 'none', color: '#b3b3b3', cursor: 'pointer', padding: '8px' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
+                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -356,6 +310,165 @@ export default function FullscreenPlayer({
           </div>
         )}
       </div>
+
+      {/* Bottom Sheet de Opciones de Canción (`...`) */}
+      {isSongOptionsOpen && (
+        <div className="mobile-bottom-sheet-backdrop" onClick={() => setIsSongOptionsOpen(false)}>
+          <div className="mobile-bottom-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-header">
+              <div className="sheet-handle" />
+              <div className="sheet-track-preview">
+                <img src={currentTrack.art} alt={currentTrack.title} className="preview-art" />
+                <div className="preview-details">
+                  <h4>{currentTrack.title}</h4>
+                  <p>{currentTrack.artist}</p>
+                </div>
+              </div>
+            </div>
+            <div className="sheet-options-list">
+              <button 
+                className="sheet-option-item" 
+                onClick={() => { 
+                  setIsSongOptionsOpen(false); 
+                  alert("Compartir: ¡Copia el enlace de esta joya de Syntwave!");
+                }}
+              >
+                <div className="option-icon-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                  </svg>
+                </div>
+                <div className="option-details">
+                  <span className="option-title">Compartir</span>
+                  <span className="option-desc">Comparte esta canción con tus amigos.</span>
+                </div>
+              </button>
+
+              <button 
+                className="sheet-option-item" 
+                onClick={() => { 
+                  setIsSongOptionsOpen(false); 
+                  if (hasLyrics) setMobileTab(mobileTab === 'player' ? 'lyrics' : 'player');
+                }}
+              >
+                <div className="option-icon-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 19v4M8 23h8"/>
+                  </svg>
+                </div>
+                <div className="option-details">
+                  <span className="option-title">Letra • {hasLyrics ? 'Activada' : 'No disponible'}</span>
+                  <span className="option-desc">Visualiza y canta la letra sincronizada.</span>
+                </div>
+              </button>
+
+              <button 
+                className="sheet-option-item" 
+                onClick={() => { 
+                  setIsSongOptionsOpen(false); 
+                  setIsAddPlaylistOpen(true); 
+                }}
+              >
+                <div className="option-icon-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                </div>
+                <div className="option-details">
+                  <span className="option-title">Agregar a playlist</span>
+                  <span className="option-desc">Guarda esta canción en una de tus playlists.</span>
+                </div>
+              </button>
+
+              <button 
+                className="sheet-option-item" 
+                onClick={() => { 
+                  setIsSongOptionsOpen(false); 
+                  toggleLikeCurrentTrack(); 
+                }}
+              >
+                <div className="option-icon-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                </div>
+                <div className="option-details">
+                  <span className="option-title">{isLiked ? 'Quitar de Favoritas' : 'Añadir a Favoritas'}</span>
+                  <span className="option-desc">Administra esta canción en tu biblioteca.</span>
+                </div>
+              </button>
+            </div>
+            <button className="sheet-cancel-btn" onClick={() => setIsSongOptionsOpen(false)}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Sheet de Añadir a Playlist */}
+      {isAddPlaylistOpen && (
+        <div className="mobile-bottom-sheet-backdrop" onClick={() => setIsAddPlaylistOpen(false)}>
+          <div className="mobile-bottom-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-header playlist-sheet-header">
+              <div className="sheet-handle" />
+              <h3>Agregar a playlist</h3>
+              <button 
+                className="new-playlist-sheet-btn"
+                onClick={() => {
+                  const plName = prompt("Introduce el nombre de la nueva playlist:");
+                  if (plName && plName.trim()) {
+                    createPlaylist(plName.trim());
+                  }
+                }}
+              >
+                Nueva playlist
+              </button>
+            </div>
+            <div className="sheet-options-list scrollable-sheet-list">
+              {(!customPlaylists || customPlaylists.length === 0) ? (
+                <div className="empty-playlists-notice" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  No tienes playlists creadas. ¡Crea una arriba!
+                </div>
+              ) : (
+                customPlaylists.map((pl) => {
+                  const alreadyHasSong = pl.songs.some(s => s.id === currentTrack.id);
+                  return (
+                    <button 
+                      key={pl.id}
+                      className="sheet-option-item playlist-item-option"
+                      onClick={() => {
+                        addTrackToPlaylist(pl.id, currentTrack);
+                        setIsAddPlaylistOpen(false);
+                      }}
+                    >
+                      <div className="playlist-mini-art">
+                        {pl.songs[0] ? (
+                          <img src={pl.songs[0].art} alt={pl.name} />
+                        ) : (
+                          <div className="empty-playlist-art">🎵</div>
+                        )}
+                      </div>
+                      <div className="option-details">
+                        <span className="option-title">{pl.name}</span>
+                        <span className="option-desc">{pl.songs.length} canciones</span>
+                      </div>
+                      {alreadyHasSong && (
+                        <div className="checkmark-playlist-added" style={{ color: '#1db954', fontSize: '18px', fontWeight: 'bold' }}>✓</div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            <button className="sheet-cancel-btn" onClick={() => setIsAddPlaylistOpen(false)}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

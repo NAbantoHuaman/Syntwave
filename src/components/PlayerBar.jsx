@@ -87,7 +87,26 @@ export default function PlayerBar({
   const volumePercent = volume * 100;
 
   return (
-    <footer className="player-bar">
+    <footer 
+      className="player-bar"
+      onClick={(e) => {
+        // En móvil (viewport <= 768px), hacer clic en la barra flotante abre el reproductor a pantalla completa,
+        // excepto si se hace clic en botones interactivos (como favorito o reproducir/pausar) o menús desplegables.
+        if (window.innerWidth <= 768 && currentTrack) {
+          if (
+            e.target.closest('.play-pause-btn') || 
+            e.target.closest('.player-like-btn') || 
+            e.target.closest('.playlist-dropdown-menu')
+          ) {
+            return;
+          }
+          setIsFullScreenPlayerOpen(true);
+        }
+      }}
+    >
+      {/* 2px Hairline Progress Bar for Mobile floating capsule view */}
+      <div className="mobile-progress-hairline" style={{ width: `${progressPercent}%` }} />
+
       {/* Player Left: Track Details */}
       <div 
         className={`player-track-details ${currentTrack ? 'clickable' : ''}`}
@@ -208,6 +227,66 @@ export default function PlayerBar({
             </div>
           </>
         )}
+      </div>
+
+      {/* Controles móviles de reproducción rápida */}
+      <div className="mobile-player-controls">
+        <button
+          className="mobile-control-btn device-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            alert("Dispositivos disponibles: Simulado en Syntwave Mobile.");
+          }}
+          title="Dispositivos"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
+            <path d="M4 6h16v10H4z"/>
+            <path d="M12 20v-4"/>
+            <path d="M9 20h6"/>
+          </svg>
+        </button>
+
+        {currentTrack && (
+          <button
+            className={`mobile-control-btn like-checkmark-btn ${isLiked ? 'liked' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleLikeCurrentTrack();
+            }}
+            title={isLiked ? "Añadido a favoritas" : "Añadir a favoritas"}
+          >
+            {isLiked ? (
+              <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '22px', height: '22px' }}>
+                <circle cx="12" cy="12" r="10" fill="#1db954"/>
+                <path d="m9 12 2 2 4-4" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '22px', height: '22px' }}>
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v8M8 12h8"/>
+              </svg>
+            )}
+          </button>
+        )}
+
+        <button
+          className="mobile-control-btn play-pause-btn-quick"
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePlayPause();
+          }}
+          title="Reproducir/Pausar"
+        >
+          {isPlaying ? (
+            <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '20px', height: '20px' }}>
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          )}
+        </button>
       </div>
 
       {/* Player Center: Playback Controls */}

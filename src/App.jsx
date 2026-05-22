@@ -9,6 +9,7 @@ import ViewPlaylistDetail from './views/ViewPlaylistDetail';
 import ViewArtistProfile from './views/ViewArtistProfile';
 import ViewUserProfile from './views/ViewUserProfile';
 import ViewLogin from './views/ViewLogin';
+import ViewLibrary from './views/ViewLibrary';
 import { SEED_SONGS, formatTime } from './data/songs';
 
 // LRC parser to convert [mm:ss.xx] Lyric lines into timed objects
@@ -192,6 +193,12 @@ export default function App() {
   // Screen Overlay Player State
   const [isFullScreenPlayerOpen, setIsFullScreenPlayerOpen] = useState(false);
   const [artistNameContext, setArtistNameContext] = useState('');
+  
+  // Mobile Bottom Sheets & Modal states
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
+  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
+  const [showMobileCreatePrompt, setShowMobileCreatePrompt] = useState(false);
+  const [mobilePlaylistInputName, setMobilePlaylistInputName] = useState('');
 
   // Recently Played State (max 6 unique)
   const [recentlyPlayed, setRecentlyPlayed] = useState(() => {
@@ -270,26 +277,44 @@ export default function App() {
   // Fetch real popular pop hits on load to make home screen dynamic and real
   useEffect(() => {
     let active = true;
+
+    const fetchJsonp = (url) => {
+      return new Promise((resolve, reject) => {
+        const callbackName = 'deezer_callback_' + Math.round(1000000 * Math.random());
+        const script = document.createElement('script');
+        window[callbackName] = (data) => {
+          delete window[callbackName];
+          document.body.removeChild(script);
+          resolve(data);
+        };
+        script.src = url + (url.includes('?') ? '&' : '?') + 'output=jsonp&callback=' + callbackName;
+        script.onerror = () => {
+          delete window[callbackName];
+          document.body.removeChild(script);
+          reject(new Error("JSONP request failed"));
+        };
+        document.body.appendChild(script);
+      });
+    };
+
     const fetchRealHomeSongs = async () => {
       try {
-        const queryUrl = 'https://itunes.apple.com/search?term=pop+hits&media=music&entity=song&limit=15';
-        const response = await fetch(queryUrl);
-        if (!response.ok) throw new Error('Network response not ok');
-        const data = await response.json();
+        const queryUrl = 'https://api.deezer.com/search?q=pop+hits&limit=15';
+        const data = await fetchJsonp(queryUrl);
         
         if (!active) return;
         
-        if (data && data.results && data.results.length > 0) {
-          const formatted = data.results.map((track) => {
-            const durationSec = track.trackTimeMillis ? track.trackTimeMillis / 1000 : 180;
+        if (data && data.data && data.data.length > 0) {
+          const formatted = data.data.map((track) => {
+            const durationSec = track.duration || 180;
             const mins = Math.floor(durationSec / 60);
             const secs = Math.floor(durationSec % 60);
             const durationStr = `${mins}:${secs < 10 ? "0" : ""}${secs}`;
 
             let artUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&auto=format&fit=crop&q=80";
-            if (track.artworkUrl100) {
-              artUrl = track.artworkUrl100.replace('100x100bb.jpg', '600x600bb.jpg');
-            }
+            if (track.album && track.album.cover_xl) artUrl = track.album.cover_xl;
+            else if (track.album && track.album.cover_big) artUrl = track.album.cover_big;
+            else if (track.artist && track.artist.picture_xl) artUrl = track.artist.picture_xl;
 
             const colors = [
               "rgba(232, 17, 91, 0.22)",
@@ -302,11 +327,11 @@ export default function App() {
             const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
             return {
-              id: `itunes-${track.trackId}`,
-              title: track.trackName,
-              artist: track.artistName || "Artista Desconocido",
-              album: track.collectionName || "Sencillo",
-              url: track.previewUrl || "",
+              id: `deezer-${track.id}`,
+              title: track.title,
+              artist: track.artist ? track.artist.name : "Artista Desconocido",
+              album: track.album ? track.album.title : "Sencillo",
+              url: track.preview || "",
               art: artUrl,
               color: randomColor,
               duration: durationStr,
@@ -326,7 +351,7 @@ export default function App() {
           });
         }
       } catch (err) {
-        console.warn("Failed to load real iTunes songs for home feed:", err);
+        console.warn("Failed to load real Deezer songs for home feed:", err);
       }
     };
 
@@ -670,11 +695,17 @@ export default function App() {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.removeAttribute('src');
+        try {
+          audioRef.current.play().catch(() => {});
+        } catch (e) {}
       }
       
-      // Stop YT player first
+      // Stop YT player first and trigger a play event synchronously to unlock audio context in browsers
       if (ytPlayerRef.current && typeof ytPlayerRef.current.stopVideo === 'function') {
         ytPlayerRef.current.stopVideo();
+        try {
+          ytPlayerRef.current.playVideo();
+        } catch (e) {}
       }
 
 
@@ -1091,6 +1122,21 @@ export default function App() {
 
       <main className="main-content">
         {/* View Switch Routing Panels */}
+        {activeView === 'library' && (
+          <ViewLibrary
+            activeView={activeView}
+            setActiveView={setActiveView}
+            likedSongsCount={likedSongs.length}
+            customPlaylists={customPlaylists}
+            createPlaylist={createPlaylist}
+            onSelectLikedSongs={showLikedPlaylist}
+            onSelectCustomPlaylist={showCustomPlaylist}
+            onSelectArtist={showArtistProfile}
+            userProfile={userProfile}
+            setIsCreateSheetOpen={setIsCreateSheetOpen}
+          />
+        )}
+
         {activeView === 'user-profile' && (
           <ViewUserProfile
             userProfile={userProfile}
@@ -1114,6 +1160,8 @@ export default function App() {
             recentlyPlayedPlaylists={recentlyPlayedPlaylists}
             onSelectItem={handleSelectRecentlyPlayedItem}
             onShowArtistProfile={showArtistProfile}
+            userProfile={userProfile}
+            setActiveView={setActiveView}
           />
         )}
 
@@ -1259,7 +1307,221 @@ export default function App() {
         toggleLikeCurrentTrack={toggleLikeCurrentTrack}
         customPlaylists={customPlaylists}
         addTrackToPlaylist={addTrackToPlaylist}
+        createPlaylist={createPlaylist}
       />
+
+      {/* Mobile Bottom Navigation Bar with Glassmorphic Retro Glow */}
+      <nav className="mobile-bottom-nav">
+        <button
+          className={`mobile-nav-btn ${activeView === 'home' ? 'active' : ''}`}
+          onClick={() => setActiveView('home')}
+        >
+          <svg viewBox="0 0 24 24" className="mobile-nav-icon">
+            <path d="M12.5 22h-10c-.8 0-1.5-.7-1.5-1.5v-10c0-.5.2-1 .6-1.4l10-8.2c.5-.4 1.3-.4 1.8 0l10 8.2c.4.4.6.9.6 1.4v10c0 .8-.7 1.5-1.5 1.5h-10zM3 20h8v-6h2v6h8v-9.5L12 5.2 3 10.5V20z" fill="currentColor"/>
+          </svg>
+          <span>Inicio</span>
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${activeView === 'search' ? 'active' : ''}`}
+          onClick={() => setActiveView('search')}
+        >
+          <svg viewBox="0 0 24 24" className="mobile-nav-icon" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <span>Buscar</span>
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${activeView === 'library' || activeView === 'liked' || activeView.startsWith('custom-') ? 'active' : ''}`}
+          onClick={() => setActiveView('library')}
+        >
+          <svg viewBox="0 0 24 24" className="mobile-nav-icon" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+            <path d="M6 6h10M6 10h10"/>
+          </svg>
+          <span>Tu biblioteca</span>
+        </button>
+
+
+
+        <button
+          className={`mobile-nav-btn ${isCreateSheetOpen ? 'active' : ''}`}
+          onClick={() => setIsCreateSheetOpen(!isCreateSheetOpen)}
+        >
+          {isCreateSheetOpen ? (
+            <svg viewBox="0 0 24 24" className="mobile-nav-icon" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className="mobile-nav-icon" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          )}
+          <span>{isCreateSheetOpen ? '' : 'Crear'}</span>
+        </button>
+      </nav>
+
+      {/* Mobile Create Playlist Bottom Sheet */}
+      {isCreateSheetOpen && (
+        <div className="mobile-bottom-sheet-backdrop" onClick={() => setIsCreateSheetOpen(false)}>
+          <div className="mobile-bottom-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-header">
+              <div className="sheet-handle" />
+              <h3>Crear</h3>
+            </div>
+            <div className="sheet-options-list">
+              <button 
+                className="sheet-option-item"
+                onClick={() => {
+                  setIsCreateSheetOpen(false);
+                  const nextNumber = customPlaylists.length + 1;
+                  setMobilePlaylistInputName(`Mi playlist #${nextNumber}`);
+                  setShowMobileCreatePrompt(true);
+                }}
+              >
+                <div className="option-icon-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                  </svg>
+                </div>
+                <div className="option-details">
+                  <span className="option-title">Playlist</span>
+                  <span className="option-desc">Crea una lista de reproducción nueva.</span>
+                </div>
+              </button>
+
+              <button 
+                className="sheet-option-item"
+                onClick={() => {
+                  setIsCreateSheetOpen(false);
+                  alert("Playlist colaborativa premium iniciada. ¡Próximamente!");
+                }}
+              >
+                <div className="option-icon-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </div>
+                <div className="option-details">
+                  <span className="option-title">Playlist colaborativa</span>
+                  <span className="option-desc">Invita a tus amigos a añadir canciones.</span>
+                </div>
+              </button>
+
+              <button 
+                className="sheet-option-item"
+                onClick={() => {
+                  setIsCreateSheetOpen(false);
+                  alert("Fusión de gustos musicales iniciada. ¡Próximamente!");
+                }}
+              >
+                <div className="option-icon-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                </div>
+                <div className="option-details">
+                  <span className="option-title">Fusión</span>
+                  <span className="option-desc">Combina tus gustos musicales con los de tus amigos.</span>
+                </div>
+              </button>
+            </div>
+            <button className="sheet-cancel-btn" onClick={() => setIsCreateSheetOpen(false)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Create Prompt Overlay Modal */}
+      {showMobileCreatePrompt && (
+        <div className="spotify-modal-overlay" onClick={() => setShowMobileCreatePrompt(false)}>
+          <div className="spotify-modal-card small-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="spotify-modal-header">
+              <h2>Crear lista de reproducción</h2>
+              <button className="spotify-modal-close-btn" onClick={() => setShowMobileCreatePrompt(false)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '18px', height: '18px' }}>
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (mobilePlaylistInputName.trim()) {
+                createPlaylist(mobilePlaylistInputName.trim());
+                setShowMobileCreatePrompt(false);
+                setMobilePlaylistInputName('');
+                setActiveView('library');
+              }
+            }}>
+              <div className="spotify-modal-body">
+                <div className="spotify-input-wrapper">
+                  <label className="spotify-input-label" htmlFor="mobileInputName">Nombre de la lista</label>
+                  <input
+                    id="mobileInputName"
+                    className="spotify-modal-input"
+                    type="text"
+                    value={mobilePlaylistInputName}
+                    onChange={(e) => setMobilePlaylistInputName(e.target.value)}
+                    placeholder="Mi playlist #1"
+                    autoFocus
+                    required
+                  />
+                </div>
+              </div>
+              <div className="spotify-modal-footer create-footer">
+                <button type="button" className="spotify-modal-btn btn-secondary" onClick={() => setShowMobileCreatePrompt(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="spotify-modal-btn btn-primary" disabled={!mobilePlaylistInputName.trim()}>
+                  Crear
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Synthwave Premium Promotion Modal Card */}
+      {isPremiumModalOpen && (
+        <div className="spotify-modal-overlay" onClick={() => setIsPremiumModalOpen(false)}>
+          <div className="premium-glow-card" onClick={(e) => e.stopPropagation()}>
+            <div className="premium-card-border" />
+            <div className="premium-card-content">
+              <span className="premium-badge-tag">SYNTHWAVE PREMIUM</span>
+              <h2>¡Eres miembro exclusivo!</h2>
+              <div className="premium-features-list">
+                <div className="p-feature-item">
+                  <span className="p-feature-bullet">⚡</span>
+                  <span>Audio de ultra alta fidelidad (320kbps)</span>
+                </div>
+                <div className="p-feature-item">
+                  <span className="p-feature-bullet">⚡</span>
+                  <span>Sin publicidad y con reproducción sin conexión</span>
+                </div>
+                <div className="p-feature-item">
+                  <span className="p-feature-bullet">⚡</span>
+                  <span>Visualizador de audio retro neón ilimitado</span>
+                </div>
+                <div className="p-feature-item">
+                  <span className="p-feature-bullet">⚡</span>
+                  <span>Letras sincronizadas en tiempo real en todos tus temas</span>
+                </div>
+              </div>
+              <p className="premium-card-footer-text">Disfruta del mejor viaje cibernético retro-futurista.</p>
+              <button className="premium-close-btn" onClick={() => setIsPremiumModalOpen(false)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Central Audio Tag */}
       <audio ref={audioRef} preload="auto" crossOrigin="anonymous"></audio>
@@ -1269,3 +1531,4 @@ export default function App() {
     </div>
   );
 }
+

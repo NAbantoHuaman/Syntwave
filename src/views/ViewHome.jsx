@@ -7,7 +7,9 @@ export default function ViewHome({
   recentlyPlayed = [],
   recentlyPlayedPlaylists = [],
   onSelectItem,
-  onShowArtistProfile
+  onShowArtistProfile,
+  userProfile,
+  setActiveView
 }) {
   const hr = new Date().getHours();
   let greeting = "Buenas tardes";
@@ -206,7 +208,38 @@ export default function ViewHome({
 
   return (
     <section className="view-panel" id="viewHome">
-      {/* Category Filter Pills (Todo, Música, Podcasts) */}
+      {/* Mobile Top Header (Avatar + Filter Pills) */}
+      <div className="mobile-home-header">
+        <div 
+          className="mobile-user-avatar" 
+          onClick={() => setActiveView && setActiveView('user-profile')}
+          style={{ backgroundColor: userProfile?.avatarColor || '#ff007f', cursor: 'pointer' }}
+        >
+          <span>{userProfile?.username ? userProfile.username.trim().charAt(0).toUpperCase() : 'U'}</span>
+        </div>
+        <div className="mobile-filter-pills">
+          <span 
+            className={`home-filter-pill ${activeFilter === 'Todo' ? 'active' : ''}`}
+            onClick={() => setActiveFilter('Todo')}
+          >
+            Todas
+          </span>
+          <span 
+            className={`home-filter-pill ${activeFilter === 'Música' ? 'active' : ''}`}
+            onClick={() => setActiveFilter('Música')}
+          >
+            Música
+          </span>
+          <span 
+            className={`home-filter-pill ${activeFilter === 'Podcasts' ? 'active' : ''}`}
+            onClick={() => setActiveFilter('Podcasts')}
+          >
+            Podcasts
+          </span>
+        </div>
+      </div>
+
+      {/* Category Filter Pills (Todo, Música, Podcasts) for Desktop */}
       <div className="home-filter-row">
         <span 
           className={`home-filter-pill ${activeFilter === 'Todo' ? 'active' : ''}`}

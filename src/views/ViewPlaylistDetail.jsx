@@ -100,135 +100,259 @@ export default function ViewPlaylistDetail({
   };
 
   return (
-    <section className={`view-panel ${isLikedPlaylist ? 'liked-view-panel' : ''}`} id="viewPlaylistDetail">
-      <div className={`playlist-header-container ${isLikedPlaylist ? 'liked-header-container' : ''}`}>
-        <div className={`playlist-header-art ${isLikedPlaylist ? 'liked-art-style' : ''}`} style={getHeaderArtStyle()}>
-          {isLikedPlaylist && (
-            <svg viewBox="0 0 24 24" fill="#ffffff" style={{ width: '88px', height: '88px' }}>
-              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+    <>
+      {/* =========================================
+          MOBILE VIEW (SPATIAL / NATIVE LAYOUT)
+          ========================================= */}
+      <div className={`playlist-mobile-view ${isLikedPlaylist ? 'liked-view-mobile' : ''}`}>
+        <div className="mobile-playlist-header-nav">
+          <button className="back-btn" onClick={() => window.dispatchEvent(new Event('popstate'))} title="Atrás">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-          )}
+          </button>
         </div>
-        <div className="playlist-header-details">
-          <span className="playlist-type">
-            {isLikedPlaylist ? "Playlist" : isCustomPlaylist ? "PLAYLIST PERSONALIZADA" : "ÁLBUM"}
-          </span>
-
-          {isCustomPlaylist ? (
-            <div 
-              className="editable-title-wrapper" 
-              onClick={handleOpenEditModal} 
-              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} 
-              title="Haga clic para editar detalles"
-            >
-              <h1 className="playlist-name-large editable">{name}</h1>
-              <svg className="edit-pencil-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '20px', height: '20px', opacity: 0.6 }}>
-                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        
+        <div className="mobile-playlist-hero">
+          <div className="mobile-playlist-art" style={getHeaderArtStyle()}>
+            {isLikedPlaylist && (
+              <svg viewBox="0 0 24 24" fill="#ffffff" style={{ width: '80px', height: '80px' }}>
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
               </svg>
-            </div>
-          ) : (
-            <h1 className="playlist-name-large" style={isLikedPlaylist ? { fontSize: '72px', fontWeight: '900', letterSpacing: '-2.5px', marginBottom: '8px' } : {}}>{name}</h1>
-          )}
+            )}
+          </div>
+        </div>
 
-          {isCustomPlaylist ? (
-            <div 
-              className="editable-desc-wrapper" 
-              onClick={handleOpenEditModal} 
-              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} 
-              title="Haga clic para editar detalles"
-            >
-              <p className="playlist-desc editable">{description || "Sin descripción. Agrega una ahora."}</p>
-              <svg className="edit-pencil-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', height: '14px', opacity: 0.6 }}>
-                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-              </svg>
+        <div className="mobile-playlist-info-block">
+          <h1 className="mobile-playlist-title">{name}</h1>
+          <div className="mobile-playlist-user-info">
+            <div className="user-avatar-circle">
+              <span className="user-initial">{type === "SYSTEM" ? "S" : (username ? username.charAt(0).toUpperCase() : 'N')}</span>
             </div>
-          ) : (
-            <p className="playlist-desc">{description || "Tu dosis diaria de excelente música."}</p>
-          )}
-
-          <div className="playlist-metadata">
-            <span className="metadata-author" style={{ fontWeight: '700', color: '#ffffff' }}>
-              {type === "SYSTEM" ? "Synthwave" : (username || "Usuario")}
+            <span className="mobile-username" onClick={handleOpenEditModal}>
+              {type === "SYSTEM" ? "Synthwave" : (username || "Nestor")}
             </span>
             <span className="dot-separator">•</span>
-            <span className="metadata-count">
-              {songs.length} {songs.length === 1 ? 'canción' : 'canciones'}
-              {isLikedPlaylist && `, ${calculateTotalDuration(songs)}`}
-            </span>
+            <span className="mobile-song-count">{songs.length} {songs.length === 1 ? 'canción' : 'canciones'}</span>
           </div>
+          <div className="mobile-playlist-metadata">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="globe-icon" style={{ width: '14px', height: '14px' }}>
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+            <span>{calculateTotalDuration(songs)}</span>
+          </div>
+        </div>
+
+        <div className="mobile-playlist-action-row">
+          <div className="mobile-actions-left">
+            <div className="small-art-icon" style={getHeaderArtStyle()}></div>
+            <button className="mobile-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></button>
+            <button className="mobile-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><polyline points="8 12 12 16 16 12" /></svg></button>
+            <button className="mobile-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg></button>
+            <button className="mobile-icon-btn" onClick={() => deletePlaylist(customPlaylistId)}><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+          </div>
+          <div className="mobile-actions-right">
+            <button className="mobile-shuffle-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></svg></button>
+            {songs.length > 0 && (
+              <button className="mobile-play-green-btn" onClick={handlePlayPlaylist}><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+            )}
+          </div>
+        </div>
+
+        <div className="mobile-action-pills-scroll">
+          <button className="action-pill" onClick={() => alert("Función simulación Premium: ¡Próximamente!")}><span>+ Agregar</span></button>
+          {isCustomPlaylist && <button className="action-pill" onClick={handleOpenEditModal}><span>= Editar</span></button>}
+          <button className="action-pill" onClick={() => alert("Ordenar: ¡Próximamente!")}><span>⇅ Ordenar</span></button>
+          {isCustomPlaylist && <button className="action-pill" onClick={handleOpenEditModal}><span>✎ Nombre y da...</span></button>}
+        </div>
+
+        <div className="mobile-songs-list">
+          {songs.length === 0 ? (
+            <div className="mobile-empty-playlist">No hay canciones en esta lista de reproducción.</div>
+          ) : (
+            songs.map((song, idx) => {
+              const isSongLiked = likedSongs.some(s => s.id === song.id);
+              const isCurrentPlaying = currentTrack?.url === song.url;
+              return (
+                <div key={`${song.id}-mobile`} className={`mobile-song-row ${isCurrentPlaying ? 'active-track' : ''}`} onClick={() => onPlaySong(songs, idx)}>
+                  <img src={song.art} alt={song.title} className="mobile-row-art" />
+                  <div className="mobile-row-info">
+                    <span className="mobile-row-title">{song.title}</span>
+                    <div className="mobile-row-artist-line" style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                      {isLikedPlaylist && (idx === 0 || idx === 4) && <span className="explicit-badge" style={{ backgroundColor: '#a7a7a7', color: '#000', fontSize: '9px', padding: '1px 4px', borderRadius: '2px', fontWeight: 'bold' }}>E</span>}
+                      <span className="mobile-row-artist">{song.artist}</span>
+                    </div>
+                  </div>
+                  <button className="mobile-row-dots" onClick={(e) => { e.stopPropagation(); setActiveDropdownId(activeDropdownId === song.id ? null : song.id); }}>
+                    <svg viewBox="0 0 24 24" fill="currentColor" style={{width: '20px', height: '20px'}}><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                  </button>
+                  {/* Dropdown */}
+                  {activeDropdownId === song.id && (
+                    <div className="mobile-row-dropdown" onClick={(e) => e.stopPropagation()}>
+                      <div className="dropdown-header">
+                        <img src={song.art} alt={song.title} />
+                        <div>
+                          <h4>{song.title}</h4>
+                          <p>{song.artist}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => { toggleLikeSong(song); setActiveDropdownId(null); }}>
+                        {isSongLiked ? "💔 Quitar de Favoritas" : "💚 Añadir a Favoritas"}
+                      </button>
+                      {customPlaylists && customPlaylists.map(pl => (
+                        <button key={pl.id} onClick={() => { addTrackToPlaylist(pl.id, song); setActiveDropdownId(null); }}>
+                          ➕ Añadir a {pl.name}
+                        </button>
+                      ))}
+                      {isCustomPlaylist && removeTrackFromPlaylist && (
+                        <button className="danger" onClick={() => { removeTrackFromPlaylist(customPlaylistId, song.id); setActiveDropdownId(null); }}>
+                          🗑️ Eliminar de playlist
+                        </button>
+                      )}
+                      <button className="cancel" onClick={() => setActiveDropdownId(null)}>Cancelar</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
-      <div className="playlist-actions-row" style={isLikedPlaylist ? { padding: '16px 0 24px 0', gap: '20px' } : {}}>
-        {songs.length > 0 && (
-          <button className="play-action-btn" onClick={handlePlayPlaylist} title="Reproducir" style={isLikedPlaylist ? { width: '56px', height: '56px', backgroundColor: '#1ed760' } : {}}>
-            <svg viewBox="0 0 24 24" fill="currentColor" style={isLikedPlaylist ? { width: '24px', height: '24px', marginLeft: '0px', color: 'black' } : {}}>
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-          </button>
-        )}
-
-        {isLikedPlaylist && (
-          <>
-            <button className="playlist-utility-btn shuffle-toggle-btn" title="Aleatorio" style={{ opacity: 0.7 }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
-                <polyline points="16 3 21 3 21 8" />
-                <line x1="4" y1="20" x2="21" y2="3" />
-                <polyline points="21 16 21 21 16 21" />
-                <line x1="15" y1="15" x2="21" y2="21" />
-                <line x1="4" y1="4" x2="9" y2="9" />
+      {/* =========================================
+          DESKTOP VIEW (TABLE / GRID LAYOUT)
+          ========================================= */}
+      <section className={`view-panel ${isLikedPlaylist ? 'liked-view-panel' : ''} desktop-playlist-view`} id="viewPlaylistDetail">
+        <div className={`playlist-header-container ${isLikedPlaylist ? 'liked-header-container' : ''}`}>
+          <div className={`playlist-header-art ${isLikedPlaylist ? 'liked-art-style' : ''}`} style={getHeaderArtStyle()}>
+            {isLikedPlaylist && (
+              <svg viewBox="0 0 24 24" fill="#ffffff" style={{ width: '88px', height: '88px' }}>
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
               </svg>
-            </button>
-            <button className="playlist-utility-btn download-btn" title="Descargar" style={{ opacity: 0.7 }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="16" />
-                <polyline points="8 12 12 16 16 12" />
-              </svg>
-            </button>
-          </>
-        )}
-
-        {isCustomPlaylist && (
-          <button
-            className="row-action-btn"
-            onClick={() => deletePlaylist(customPlaylistId)}
-            style={{
-              backgroundColor: 'rgba(255, 75, 75, 0.1)',
-              color: '#ff4b4b',
-              border: '1px solid rgba(255, 75, 75, 0.2)',
-              borderRadius: '20px',
-              padding: '6px 16px',
-              fontSize: '12px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 75, 75, 0.2)'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(255, 75, 75, 0.1)'}
-          >
-            Eliminar Playlist
-          </button>
-        )}
-
-        {isLikedPlaylist && (
-          <div className="far-right-list-action" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', color: '#a7a7a7', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
-            <span>Lista</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
-              <line x1="8" y1="6" x2="21" y2="6"></line>
-              <line x1="8" y1="12" x2="21" y2="12"></line>
-              <line x1="8" y1="18" x2="21" y2="18"></line>
-              <line x1="3" y1="6" x2="3.01" y2="6"></line>
-              <line x1="3" y1="12" x2="3.01" y2="12"></line>
-              <line x1="3" y1="18" x2="3.01" y2="18"></line>
-            </svg>
+            )}
           </div>
-        )}
-      </div>
+          <div className="playlist-header-details">
+            <span className="playlist-type">
+              {isLikedPlaylist ? "Playlist" : isCustomPlaylist ? "PLAYLIST PERSONALIZADA" : "ÁLBUM"}
+            </span>
 
-      {/* Song list table */}
-      <div className="songs-table-container">
-        <table className="songs-table">
-          <thead>
+            {isCustomPlaylist ? (
+              <div 
+                className="editable-title-wrapper" 
+                onClick={handleOpenEditModal} 
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} 
+                title="Haga clic para editar detalles"
+              >
+                <h1 className="playlist-name-large editable">{name}</h1>
+                <svg className="edit-pencil-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '20px', height: '20px', opacity: 0.6 }}>
+                  <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                </svg>
+              </div>
+            ) : (
+              <h1 className="playlist-name-large" style={isLikedPlaylist ? { fontSize: '72px', fontWeight: '900', letterSpacing: '-2.5px', marginBottom: '8px' } : {}}>{name}</h1>
+            )}
+
+            {isCustomPlaylist ? (
+              <div 
+                className="editable-desc-wrapper" 
+                onClick={handleOpenEditModal} 
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} 
+                title="Haga clic para editar detalles"
+              >
+                <p className="playlist-desc editable">{description || "Sin descripción. Agrega una ahora."}</p>
+                <svg className="edit-pencil-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', height: '14px', opacity: 0.6 }}>
+                  <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                </svg>
+              </div>
+            ) : (
+              <p className="playlist-desc">{description || "Tu dosis diaria de excelente música."}</p>
+            )}
+
+            <div className="playlist-metadata">
+              <span className="metadata-author" style={{ fontWeight: '700', color: '#ffffff' }}>
+                {type === "SYSTEM" ? "Synthwave" : (username || "Usuario")}
+              </span>
+              <span className="dot-separator">•</span>
+              <span className="metadata-count">
+                {songs.length} {songs.length === 1 ? 'canción' : 'canciones'}
+                {isLikedPlaylist && `, ${calculateTotalDuration(songs)}`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="playlist-actions-row" style={isLikedPlaylist ? { padding: '16px 0 24px 0', gap: '20px' } : {}}>
+          {songs.length > 0 && (
+            <button className="play-action-btn" onClick={handlePlayPlaylist} title="Reproducir" style={isLikedPlaylist ? { width: '56px', height: '56px', backgroundColor: '#1ed760' } : {}}>
+              <svg viewBox="0 0 24 24" fill="currentColor" style={isLikedPlaylist ? { width: '24px', height: '24px', marginLeft: '0px', color: 'black' } : {}}>
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </button>
+          )}
+
+          {isLikedPlaylist && (
+            <>
+              <button className="playlist-utility-btn shuffle-toggle-btn" title="Aleatorio" style={{ opacity: 0.7 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px' }}>
+                  <polyline points="16 3 21 3 21 8" />
+                  <line x1="4" y1="20" x2="21" y2="3" />
+                  <polyline points="21 16 21 21 16 21" />
+                  <line x1="15" y1="15" x2="21" y2="21" />
+                  <line x1="4" y1="4" x2="9" y2="9" />
+                </svg>
+              </button>
+              <button className="playlist-utility-btn download-btn" title="Descargar" style={{ opacity: 0.7 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="16" />
+                  <polyline points="8 12 12 16 16 12" />
+                </svg>
+              </button>
+            </>
+          )}
+
+          {isCustomPlaylist && (
+            <button
+              className="row-action-btn"
+              onClick={() => deletePlaylist(customPlaylistId)}
+              style={{
+                backgroundColor: 'rgba(255, 75, 75, 0.1)',
+                color: '#ff4b4b',
+                border: '1px solid rgba(255, 75, 75, 0.2)',
+                borderRadius: '20px',
+                padding: '6px 16px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 75, 75, 0.2)'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(255, 75, 75, 0.1)'}
+            >
+              Eliminar Playlist
+            </button>
+          )}
+
+          {isLikedPlaylist && (
+            <div className="far-right-list-action" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', color: '#a7a7a7', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+              <span>Lista</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            </div>
+          )}
+        </div>
+        
+        <div className="songs-table-container">
+          <table className="songs-table">
+            <thead>
             <tr>
               <th className="col-index">#</th>
               <th className="col-title">Título</th>
@@ -476,6 +600,7 @@ export default function ViewPlaylistDetail({
           </tbody>
         </table>
       </div>
+      </section>
 
       {/* Sleek Synthwave-style "Editar Detalles" Modal Overlay */}
       {showEditModal && (
@@ -562,6 +687,6 @@ export default function ViewPlaylistDetail({
           </div>
         </div>
       )}
-    </section>
+    </>
   );
 }
